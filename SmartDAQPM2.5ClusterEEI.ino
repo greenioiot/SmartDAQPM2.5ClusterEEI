@@ -1,5 +1,8 @@
 #include "HardwareSerial_NB_BC95.h"
-
+// Include the header files that contain the icons
+#include "NBIOT.h"
+#include "ThaiEEI.h"
+#include "DIP.h"
 #include "BluetoothSerial.h"
 #define _TASK_TIMECRITICAL
 
@@ -15,7 +18,7 @@
 #include "HardwareSerial_NB_BC95.h"
 #include <TFT_eSPI.h>
 #include "FS.h"
-#include "SD.h"
+//#include "SD.h"
 #include "RTClib.h"
 #include "Free_Fonts.h"
 
@@ -28,16 +31,15 @@
 #define CF_OL32 &Orbitron_Light_32
 
 #define title1 "PM2.5" // Text that will be printed on screen in any font
+#define title2 "_________" // Text that will be printed on screen in any font
 
 String deviceToken = "oBG4ytLhapv2e9oRyA4o";
 String serverIP = "103.27.203.83"; // Your Server IP;
 String serverPort = "9956"; // Your Server Port;
 
 
-
+int statusLoading = 0;
 BluetoothSerial SerialBT;
-
-
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 
 TFT_eSPI tft = TFT_eSPI();       // Invoke custom library
@@ -53,18 +55,26 @@ BME280I2C bme;    // Default : forced mode, standby time = 1000 ms
 
 
 HardwareSerial_NB_BC95 AISnb;
-const long intervalTask1 = 13000;  //millisecond
-const long intervalTask2 = 11000;  //millisecond
-const long intervalTask3 = 65000;  //millisecond
-const long intervalTask4 = 60000;  //millisecond
-
-unsigned long previousMillisTask1 = 0;
-unsigned long previousMillisTask2 = 0;
-unsigned long previousMillisTask3 = 0;
-unsigned long previousMillisTask4 = 0;
+//const long intervalTask1 = 13000;  //millisecond
+//const long intervalTask2 = 11000;  //millisecond
+//const long intervalTask3 = 65000;  //millisecond
+//const long intervalTask4 = 60000;  //millisecond
+//
+//unsigned long previousMillisTask1 = 0;
+//unsigned long previousMillisTask2 = 0;
+//unsigned long previousMillisTask3 = 0;
+//unsigned long previousMillisTask4 = 0;
 
 float temp(NAN), hum(NAN), pres(NAN);
 
+void t1CallgetProbe();
+void t2CallshowEnv();
+void t3CallsendViaNBIOT();
+//TASK
+Task t1(20000, TASK_FOREVER, &t1CallgetProbe);
+Task t2(22000, TASK_FOREVER, &t2CallshowEnv);
+Task t3(30000, TASK_FOREVER, &t3CallsendViaNBIOT);
+Scheduler runner;
 
 int xpos = 0;
 int ypos = 0;
@@ -163,11 +173,19 @@ void t3CallshowPM() {
 
 }
 void t2CallshowEnv() {
- 
+
 
   tft.setTextDatum(MC_DATUM);
   xpos = tft.width() / 2; // Half the screen width
   tft.fillScreen(TFT_BLACK);            // Clear screen
+
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextSize(3);
+  tft.setFreeFont(CF_OL32);
+  tft.setTextPadding(280);
+  tft.drawNumber(data.pm25_env, xpos, 80);
+  tft.setTextSize(1);
+  tft.setFreeFont(CF_OL32);                 // Select the font
   if ((data.pm25_env > 50) && (data.pm25_env < 120)) {
     tft.setTextColor(TFT_ORANGE, TFT_BLACK);
 
@@ -175,21 +193,17 @@ void t2CallshowEnv() {
     tft.setTextColor(TFT_RED, TFT_BLACK);
 
   } else {
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.setTextColor(TFT_GREEN, TFT_BLACK);
 
   }
-  tft.setFreeFont(CF_OL32);                 // Select the font
-  tft.drawString(title1, xpos, 190, GFXFF);// Print the test text in the custom font
-  tft.setTextSize(3);
-  tft.setFreeFont(CF_OL32);
-  tft.setTextPadding(280);
-  tft.drawNumber(data.pm25_env, xpos, 72);
- 
-  tft.setTextSize(1);
+  tft.drawString(title2, xpos, 150, GFXFF);// Print the test text in the custom font
+  tft.setTextDatum(BR_DATUM);
+  tft.setTextColor(TFT_WHITE);
 
+  tft.drawString(title1, xpos, 220, GFXFF);// Print the test text in the custom font
   // Reset text padding to zero (default)
   tft.setTextPadding(0);
-
+  
 }
 
 
@@ -212,7 +226,7 @@ void sendAttribute() {
   UDPSend udp = AISnb.sendUDPmsgStr(serverIP, serverPort, attr);
 
 }
-void t4CallsendViaNBIOT() {
+void t3CallsendViaNBIOT() {
   composeJson();
 
   Serial.println(json);
@@ -220,11 +234,25 @@ void t4CallsendViaNBIOT() {
   // Send data in String
   UDPSend udp = AISnb.sendUDPmsgStr(serverIP, serverPort, json);
   UDPReceive resp = AISnb.waitResponse();
+  drawOnline();
 }
 void splash() {
   int xpos =  0;
   int ypos = 40;
   tft.init();
+   // Swap the colour byte order when rendering
+  tft.setSwapBytes(true);
+  tft.setRotation(1);  // landscape
+
+  tft.fillScreen(TFT_WHITE);
+  // Draw the icons
+  tft.pushImage(tft.width()/2-dipWidth/2, 1, dipWidth, dipHeight, dip);
+    delay(5000);
+    tft.fillScreen(TFT_WHITE);  
+//  tft.pushImage(32, 32, nbiotWidth, nbiotHeight, nbiot);
+
+  tft.pushImage(tft.width()/2-thaieeiWidth/2, 55, thaieeiWidth, thaieeiHeight, thaieei);
+  delay(5000);
   tft.setTextFont(GLCD);
   tft.setRotation(1);
   //  tft.setFreeFont(FSSBO24);
@@ -253,8 +281,8 @@ void splash() {
   for ( int i = 0; i < 180; i++)
   {
     tft.drawNumber(i, xpos, 180);
-    tft.drawString(".", 1+2*i, 200, GFXFF);
-    delay(300);
+    tft.drawString(".", 1 + 2 * i, 200, GFXFF);
+    delay(100);
     Serial.println(i);
   }
   Serial.println("end");
@@ -265,7 +293,14 @@ void setup() {
   _initLCD();
   _initBME280();
   Serial.begin(115200);
-  SerialBT.begin("SmartDAQPM2.5"); //Bluetooth device name
+
+  SerialBT.begin("Start SmartDAQPM2.5.."); //Bluetooth device name
+  Serial.println("Start SmartDAQPM2.5..");
+  SerialBT.print("imsi:");
+  SerialBT.println(imsi);
+  SerialBT.print("imei:");
+  SerialBT.println(imei);
+
 
   pinMode(15, OUTPUT); // turn on PMS7003
   digitalWrite(15, HIGH); // turn on PMS7003
@@ -273,7 +308,22 @@ void setup() {
   pinMode(32, OUTPUT); // on BME280
   digitalWrite(32, HIGH); // on BME280
   delay(1000);
+  runner.init();
+  Serial.println("Initialized scheduler");
 
+  runner.addTask(t1);
+  Serial.println("added t1");
+  runner.addTask(t2);
+  Serial.println("added t2");
+  runner.addTask(t3);
+  Serial.println("added t3");
+
+  runner.addTask(t3);
+  Serial.println("added t3");
+  delay(2000);
+  t1.enable();  Serial.println("Enabled t1");
+  t2.enable();  Serial.println("Enabled t2");
+  t3.enable();  Serial.println("Enabled t3");
 
   AISnb.debug = true;
   AISnb.setupDevice(serverPort);
@@ -286,7 +336,24 @@ void setup() {
 
   hwSerial.begin(9600, SERIAL_8N1, SERIAL1_RXPIN, SERIAL1_TXPIN);
 }
+void drawOnline() {
+  tft.setTextColor(TFT_GREEN);
 
+  tft.setTextDatum(TL_DATUM); // Centre text on x,y position
+
+  xpos = tft.width() - 70; // Half the screen width
+  ypos = 10;
+
+  tft.setFreeFont(FMB9);                              // Select the font
+//  tft.drawString("NB-IoT", xpos, ypos, GFXFF);  // Draw the text string in the selected GFX free font
+  tft.pushImage(xpos, ypos, nbiotWidth, nbiotHeight, nbiot);
+
+  delay(3000);
+  tft.setTextColor(TFT_BLACK);
+  
+//  tft.drawString("NB-IoT", xpos, ypos, GFXFF);  // Draw the text string in the selected GFX free font
+
+}
 void printBME280Data()
 {
   BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
@@ -402,35 +469,6 @@ boolean readPMSdata(Stream *s) {
 }
 void loop() {
 
-  //  runner.execute();
-  unsigned long currentMillis = millis();
-  //    previousMillisTask1 = millis();
-  //  previousMillisTask2 = millis();;
-  //  previousMillisTask3 = millis();;
-  //  previousMillisTask4 = millis();;
-  if (currentMillis - previousMillisTask1 >= intervalTask1)
-  {
-    t1CallgetProbe();
-    previousMillisTask1 = currentMillis;
-  }
-
-  if (currentMillis - previousMillisTask2 >= intervalTask2)
-  {
-    t2CallshowEnv();
-    previousMillisTask2 = currentMillis;
-  }
-
-    if (currentMillis - previousMillisTask3 >= intervalTask3)
-    {
-      sendAttribute();
-      previousMillisTask3 = currentMillis;
-    }
-
-  if (currentMillis - previousMillisTask4 >= intervalTask4)
-  {
-    t4CallsendViaNBIOT();
-    previousMillisTask4 = currentMillis;
-  }
-
+  runner.execute();
 
 }
