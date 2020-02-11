@@ -33,8 +33,6 @@
 #define CF_OL32 &Orbitron_Light_32
 
 #define title1 "PM2.5" // Text that will be printed on screen in any font
-#define title2 "_________" // Text that will be printed on screen in any font
-#define title3 "%rH" // Text that will be printed on screen in any font
 
 String deviceToken = "oBG4ytLhapv2e9oRyA4o";
 String serverIP = "103.27.203.83"; // Your Server IP;
@@ -66,10 +64,12 @@ float temp(NAN), hum(NAN), pres(NAN);
 void t1CallgetProbe();
 void t2CallshowEnv();
 void t3CallsendViaNBIOT();
+//void t4CallsendAttribute();
 //TASK
 Task t1(20000, TASK_FOREVER, &t1CallgetProbe);
 Task t2(22000, TASK_FOREVER, &t2CallshowEnv);
 Task t3(60000, TASK_FOREVER, &t3CallsendViaNBIOT);
+//Task t4(610000, TASK_FOREVER, &t4CallsendAttribute);
 Scheduler runner;
 
 int xpos = 0;
@@ -146,17 +146,22 @@ void t2CallshowEnv() {
     tft.drawNumber(data.pm25_env, xpos, 80);
     tft.setTextSize(1);
     tft.setFreeFont(CF_OL32);                 // Select the font
-    if ((data.pm25_env > 50) && (data.pm25_env < 120)) {
-      tft.setTextColor(TFT_ORANGE, TFT_BLACK);
+    if ((data.pm25_env > 0) && (data.pm25_env < 51)) {
+      tft.fillRect(10, 155, tft.width()-10, 5, TFT_GREEN);// Print the test text in the custom font
 
-    } else if (data.pm25_env > 120) {
-      tft.setTextColor(TFT_RED, TFT_BLACK);
+    } else if ((data.pm25_env > 51) && (data.pm25_env < 101)  ){
+      tft.fillRect(10, 155, tft.width()-10, 5, TFT_YELLOW);// Print the test text in the custom font
 
-    } else {
-      tft.setTextColor(TFT_GREEN, TFT_BLACK);
-
-    }
-    tft.drawString(title2, xpos, 150, GFXFF);// Print the test text in the custom font
+    } else  if ((data.pm25_env > 101) && (data.pm25_env < 151)  ){
+      tft.fillRect(10, 155, tft.width()-10, 5, TFT_ORANGE);// Print the test text in the custom font
+    }else  if ((data.pm25_env > 151) && (data.pm25_env < 201)  ){
+      tft.fillRect(10, 155, tft.width()-10, 5, TFT_RED);// Print the test text in the custom font
+    }else  if ((data.pm25_env > 201) && (data.pm25_env < 300)  ){
+      tft.fillRect(10, 155, tft.width()-10, 5, TFT_PURPLE);// Print the test text in the custom font
+    }else {
+      tft.fillRect(10, 155, tft.width()-10, 5, TFT_BLUE);// Print the test text in the custom font
+      }
+    
     tft.setTextDatum(BR_DATUM);
     tft.setTextColor(TFT_WHITE);
 
@@ -164,10 +169,10 @@ void t2CallshowEnv() {
     tft.setFreeFont(FSB9);
     tft.setTextColor(TFT_WHITE);
 
-    tft.drawNumber(hum, xpos + 93, 200);    tft.drawString("c", xpos + 107, 200, GFXFF);
+    tft.drawNumber(hum, xpos + 113, 200);    tft.drawString("c", xpos + 127, 200, GFXFF);
     //    tft.pushImage(xpos + 120, 165, humiWidth, humiHeight, humi);
     //    tft.drawString(title3, xpos + 130, 200, GFXFF);// Print the test text in the custom font
-    tft.drawNumber(temp, xpos + 93, 230);   tft.drawString("%", xpos + 110, 230, GFXFF);
+    tft.drawNumber(temp, xpos + 113, 230);   tft.drawString("%", xpos + 130, 230, GFXFF);
     //    tft.pushImage(xpos + 120, 200, tempWidth, tempHeight, tem);
 
     tft.setTextPadding(0);
@@ -187,7 +192,7 @@ void t1CallgetProbe() {
   printBME280Data();
 
 }
-void sendAttribute() {
+void t4CallsendAttribute() {
   attr = "";
   attr.concat("{\"Tn\":\"");
   attr.concat(deviceToken);
@@ -198,8 +203,18 @@ void sendAttribute() {
   attr.concat("\"");
   attr.concat(imei);
   attr.concat("\"}");
-  UDPSend udp = AISnb.sendUDPmsgStr(serverIP, serverPort, attr);
-
+  UDPSend  resp = AISnb.sendUDPmsgStr(serverIP, serverPort, attr);
+//  UDPReceive resp = AISnb.waitResponse();
+  Serial.println("t4CallsendAttribute");
+  for(int i = 0; i< 5; i++){
+      resp = AISnb.sendUDPmsgStr(serverIP, serverPort, attr);
+      delay(2000);
+      if(resp.status)
+        break;
+    }
+    
+    
+  
 }
 void t3CallsendViaNBIOT() {
   composeJson();
@@ -208,8 +223,10 @@ void t3CallsendViaNBIOT() {
   getAQI() ;
   // Send data in String
   if (ready2display) {
-    UDPSend udp = AISnb.sendUDPmsgStr(serverIP, serverPort, json);
-    UDPReceive resp = AISnb.waitResponse();
+    UDPSend resp = AISnb.sendUDPmsgStr(serverIP, serverPort, json);
+//    UDPReceive resp = AISnb.waitResponse();
+    Serial.print("resp:");
+    Serial.println(resp.status);
     drawOnline();
   }
 
@@ -229,16 +246,12 @@ void splash() {
   tft.fillScreen(TFT_WHITE);
 
   tft.pushImage(tft.width() / 2 - thaieeiWidth / 2, 55, thaieeiWidth, thaieeiHeight, thaieei);
-  delay(5000);
+  
   tft.setTextFont(GLCD);
   tft.setRotation(1);
-  //  tft.setFreeFont(FSSBO24);
   tft.fillScreen(TFT_BLACK);
-
   tft.setTextColor(TFT_WHITE);
-
   tft.setTextDatum(TC_DATUM); // Centre text on x,y position
-
   xpos = tft.width() / 2; // Half the screen width
   ypos = 50;
 
@@ -255,7 +268,7 @@ void splash() {
   tft.setTextColor(TFT_GREEN);
   tft.setTextDatum(MC_DATUM);
   Serial.println("Start...");
-  for ( int i = 0; i < 180; i++)
+  for ( int i = 0; i < 150; i++)
   {
 //    tft.setTextPadding(180);
 //    tft.drawNumber(i, xpos, 180);
@@ -297,13 +310,13 @@ void setup() {
   runner.addTask(t3);
   Serial.println("added t3");
 
-  runner.addTask(t3);
-  Serial.println("added t3");
+//  runner.addTask(t4);
+//  Serial.println("added t4");
   delay(2000);
   t1.enable();  Serial.println("Enabled t1");
   t2.enable();  Serial.println("Enabled t2");
   t3.enable();  Serial.println("Enabled t3");
-
+//  t4.enable();  Serial.println("Enabled t4");
   AISnb.debug = true;
   AISnb.setupDevice(serverPort);
   String ip1 = AISnb.getDeviceIP();
@@ -314,7 +327,7 @@ void setup() {
   pingRESP pingR = AISnb.pingIP(serverIP);
 
   hwSerial.begin(9600, SERIAL_8N1, SERIAL1_RXPIN, SERIAL1_TXPIN);
-  sendAttribute();
+  t4CallsendAttribute();
 }
 void drawOnline() {
   tft.setTextColor(TFT_GREEN);
