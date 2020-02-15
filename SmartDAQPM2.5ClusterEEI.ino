@@ -5,6 +5,7 @@
 #include "DIP.h"
 #include "humi.h"
 #include "tem.h"
+#include "thaismart.h"
 #include "BluetoothSerial.h"
 #define _TASK_TIMECRITICAL
 
@@ -24,17 +25,12 @@
 #include "RTClib.h"
 #include "Free_Fonts.h"
 
-// Board Thingcontrol
-#define SPI_MISO 19
-#define SPI_MOSI 13
-#define SPI_SCK 18
-#define TFT_DC 5
-#define TFT_RST 23
+
 #define CF_OL32 &Orbitron_Light_32
 
 #define title1 "PM2.5" // Text that will be printed on screen in any font
 
-String deviceToken = "oBG4ytLhapv2e9oRyA4o";
+String deviceToken = "19269409";
 String serverIP = "103.27.203.83"; // Your Server IP;
 String serverPort = "9956"; // Your Server Port;
 boolean ready2display = false;
@@ -147,21 +143,21 @@ void t2CallshowEnv() {
     tft.setTextSize(1);
     tft.setFreeFont(CF_OL32);                 // Select the font
     if ((data.pm25_env > 0) && (data.pm25_env < 51)) {
-      tft.fillRect(10, 155, tft.width()-10, 5, TFT_GREEN);// Print the test text in the custom font
+      tft.fillRect(10, 155, tft.width() - 10, 5, TFT_GREEN); // Print the test text in the custom font
 
-    } else if ((data.pm25_env > 51) && (data.pm25_env < 101)  ){
-      tft.fillRect(10, 155, tft.width()-10, 5, TFT_YELLOW);// Print the test text in the custom font
+    } else if ((data.pm25_env > 51) && (data.pm25_env < 101)  ) {
+      tft.fillRect(10, 155, tft.width() - 10, 5, TFT_YELLOW); // Print the test text in the custom font
 
-    } else  if ((data.pm25_env > 101) && (data.pm25_env < 151)  ){
-      tft.fillRect(10, 155, tft.width()-10, 5, TFT_ORANGE);// Print the test text in the custom font
-    }else  if ((data.pm25_env > 151) && (data.pm25_env < 201)  ){
-      tft.fillRect(10, 155, tft.width()-10, 5, TFT_RED);// Print the test text in the custom font
-    }else  if ((data.pm25_env > 201) && (data.pm25_env < 300)  ){
-      tft.fillRect(10, 155, tft.width()-10, 5, TFT_PURPLE);// Print the test text in the custom font
-    }else {
-      tft.fillRect(10, 155, tft.width()-10, 5, TFT_BLUE);// Print the test text in the custom font
-      }
-    
+    } else  if ((data.pm25_env > 101) && (data.pm25_env < 151)  ) {
+      tft.fillRect(10, 155, tft.width() - 10, 5, TFT_ORANGE); // Print the test text in the custom font
+    } else  if ((data.pm25_env > 151) && (data.pm25_env < 201)  ) {
+      tft.fillRect(10, 155, tft.width() - 10, 5, TFT_RED); // Print the test text in the custom font
+    } else  if ((data.pm25_env > 201) && (data.pm25_env < 300)  ) {
+      tft.fillRect(10, 155, tft.width() - 10, 5, TFT_PURPLE); // Print the test text in the custom font
+    } else {
+      tft.fillRect(10, 155, tft.width() - 10, 5, TFT_BLUE); // Print the test text in the custom font
+    }
+
     tft.setTextDatum(BR_DATUM);
     tft.setTextColor(TFT_WHITE);
 
@@ -169,10 +165,10 @@ void t2CallshowEnv() {
     tft.setFreeFont(FSB9);
     tft.setTextColor(TFT_WHITE);
 
-    tft.drawNumber(hum, xpos + 113, 200);    tft.drawString("c", xpos + 127, 200, GFXFF);
+    tft.drawNumber(hum, xpos + 113, 200);    tft.drawString("%", xpos + 133, 200, GFXFF);
     //    tft.pushImage(xpos + 120, 165, humiWidth, humiHeight, humi);
     //    tft.drawString(title3, xpos + 130, 200, GFXFF);// Print the test text in the custom font
-    tft.drawNumber(temp, xpos + 113, 230);   tft.drawString("%", xpos + 130, 230, GFXFF);
+    tft.drawNumber(temp, xpos + 113, 230);   tft.drawString("c", xpos + 130, 230, GFXFF);
     //    tft.pushImage(xpos + 120, 200, tempWidth, tempHeight, tem);
 
     tft.setTextPadding(0);
@@ -204,27 +200,28 @@ void t4CallsendAttribute() {
   attr.concat(imei);
   attr.concat("\"}");
   UDPSend  resp = AISnb.sendUDPmsgStr(serverIP, serverPort, attr);
-//  UDPReceive resp = AISnb.waitResponse();
+  //  UDPReceive resp = AISnb.waitResponse();
   Serial.println("t4CallsendAttribute");
-  for(int i = 0; i< 5; i++){
-      resp = AISnb.sendUDPmsgStr(serverIP, serverPort, attr);
-      delay(2000);
-      if(resp.status)
-        break;
-    }
-    
-    
-  
+  for (int i = 0; i < 5; i++) {
+    resp = AISnb.sendUDPmsgStr(serverIP, serverPort, attr);
+    delay(2000);
+    if (resp.status)
+      break;
+  }
+
+
+
 }
 void t3CallsendViaNBIOT() {
   composeJson();
 
   Serial.println(json);
-  getAQI() ;
+  SerialBT.println(json);
+  //  printPMS() ;
   // Send data in String
   if (ready2display) {
     UDPSend resp = AISnb.sendUDPmsgStr(serverIP, serverPort, json);
-//    UDPReceive resp = AISnb.waitResponse();
+    //    UDPReceive resp = AISnb.waitResponse();
     Serial.print("resp:");
     Serial.println(resp.status);
     drawOnline();
@@ -245,53 +242,54 @@ void splash() {
   delay(5000);
   tft.fillScreen(TFT_WHITE);
 
-  tft.pushImage(tft.width() / 2 - thaieeiWidth / 2, 55, thaieeiWidth, thaieeiHeight, thaieei);
-  
+  tft.pushImage(tft.width() / 2 - thaieeiWidth / 2, 35, thaieeiWidth, thaieeiHeight, thaieei);
+  delay(5000);
   tft.setTextFont(GLCD);
   tft.setRotation(1);
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE);
+  tft.fillScreen(TFT_WHITE);
+  tft.setTextColor(TFT_BLACK);
   tft.setTextDatum(TC_DATUM); // Centre text on x,y position
   xpos = tft.width() / 2; // Half the screen width
   ypos = 50;
 
   tft.setFreeFont(FSB24);                              // Select the font
-  tft.drawString("SmartDAQ", xpos, ypos, GFXFF);  // Draw the text string in the selected GFX free font
+  //  tft.drawString("SmartDAQ", xpos, ypos, GFXFF);  // Draw the text string in the selected GFX free font
   ypos += tft.fontHeight(GFXFF);                      // Get the font height and move ypos down
   tft.setFreeFont(FSB9);
-  tft.drawString("PM2.5", xpos, ypos, GFXFF);
+  tft.pushImage(tft.width() / 2 - thaismartWidth / 2, 55, thaismartWidth, thaismartHeight, thaismart);
+
+  tft.drawString("v1.0", xpos, ypos+20, GFXFF);
+  tft.drawString("id:" + deviceToken, xpos, ypos + 40, GFXFF);
   ypos += tft.fontHeight(GFXFF);
-  tft.drawString("by", xpos, ypos, GFXFF);
-  ypos += tft.fontHeight(GFXFF);
-  tft.drawString("Cluster Electronics", xpos, ypos, GFXFF);
+  //  tft.drawString("THAISMART ELECTRONICS", xpos, ypos, GFXFF);
+  //  tft.setTextColor(TFT_WHITE);
+
+  delay(5000);
   tft.setTextPadding(180);
   tft.setTextColor(TFT_GREEN);
   tft.setTextDatum(MC_DATUM);
   Serial.println("Start...");
-  for ( int i = 0; i < 150; i++)
+  for ( int i = 0; i < 200; i++)
   {
-//    tft.setTextPadding(180);
-//    tft.drawNumber(i, xpos, 180);
     tft.drawString(".", 1 + 2 * i, 200, GFXFF);
-    delay(100);
+    delay(50);
     Serial.println(i);
-
   }
   Serial.println("end");
 }
 void setup() {
-
-  ypos = 60;
-  _initLCD();
-  _initBME280();
   Serial.begin(115200);
 
-  SerialBT.begin("SmartDAQPM2.5.." + deviceToken); //Bluetooth device name
-  Serial.println("Start SmartDAQPM2.5..");
+  SerialBT.begin("SMDID:" + deviceToken); //Bluetooth device name
+  Serial.println("SMDID:" + deviceToken); //Bluetooth device name
   SerialBT.print("imsi:");
   SerialBT.println(imsi);
   SerialBT.print("imei:");
   SerialBT.println(imei);
+  ypos = 60;
+  _initLCD();
+  _initBME280();
+
 
 
   pinMode(15, OUTPUT); // turn on PMS7003
@@ -310,13 +308,13 @@ void setup() {
   runner.addTask(t3);
   Serial.println("added t3");
 
-//  runner.addTask(t4);
-//  Serial.println("added t4");
+  //  runner.addTask(t4);
+  //  Serial.println("added t4");
   delay(2000);
   t1.enable();  Serial.println("Enabled t1");
   t2.enable();  Serial.println("Enabled t2");
   t3.enable();  Serial.println("Enabled t3");
-//  t4.enable();  Serial.println("Enabled t4");
+  //  t4.enable();  Serial.println("Enabled t4");
   AISnb.debug = true;
   AISnb.setupDevice(serverPort);
   String ip1 = AISnb.getDeviceIP();
@@ -382,7 +380,7 @@ void composeJson() {
     ESP.restart();
 
 }
-void getAQI() {
+void printPMS() {
 
   // reading data was successful!
   //  Serial.println();
@@ -453,7 +451,7 @@ boolean readPMSdata(Stream *s) {
     return false;
   }
   // success!
-  
+
   return true;
 }
 void loop() {
